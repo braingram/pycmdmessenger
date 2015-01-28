@@ -89,14 +89,25 @@ class Messenger(object):
         # TODO validate commands
         validate_command(cmds)
         self.cmds = {}
+        self.callbacks = {}
         for (i, c) in enumerate(cmds):
+            # resolve command name
             if not isinstance(c, dict):
                 c = {'name': c}
+            else:
+                c = c.copy()
+            # resolve command id
             c['id'] = i
+            # resolve command params
+            if 'params' in c:
+                ps = []
+                for rp in c['params']:
+                    ps.append(params.types[rp])
+                c['params'] = ps
+            self.callbacks[i] = []
             self.cmds[i] = c
             if 'name' in c:
                 self.cmds[c['name']] = c
-        self.callbacks = {}
 
     # stream parsing
     def process_line(self, l):
@@ -104,10 +115,10 @@ class Messenger(object):
         cmd_id = int(tokens[0])
         types = self.cmds[cmd_id].get('params', [])
         args = [t['from'](a) for (t, a) in zip(types, unescape(tokens[1:]))]
-        if cmd_id not in self.callbacks:
+        if len(self.callbacks.get(cmd_id, [])) == 0:
             self.unknown(*args)
         else:
-            self.callbacks[cmd_id](*args)
+            [c(*args) for c in self.callbacks[cmd_id]]
 
     def read_line(self):
         l = self.stream.read(1)  # TODO optimize this
@@ -127,7 +138,15 @@ class Messenger(object):
 
     # callbacks
     def attach(self, func, index):
-        self.callbacks[index] = func
+        self.callbacks[index].append(func)
+        return id(func)
+
+    def detach(self, callback_id):
+        if not isinstance(callback_id, int):
+            callback_id = id(callback_id)
+        for cmd_id in self.callbacks:
+            if callback_id in self.callbacks[cmd_id]:
+                self.callbacks[cmd_id].remove(callback_id)
 
     def unknown(self, *args):
         pass  # called when an unknown command is received
