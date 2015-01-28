@@ -25,32 +25,45 @@ types:
 
 import struct
 
+
+def tosci(v):
+    s = "%.2E" % v
+    if 'E' not in s:
+        return s
+    if s[-2] == '0' and s[-3] in '+-':
+        return s[:-2] + s[-1]
+    return s
+
 bool_to_string = lambda v: str(int(v))
-bool_from_string = lambda s: bool(s)
+bool_from_string = lambda s: bool(int(s))
 bool_to_bytes = lambda v: struct.pack('<?', v)
-bool_from_bytes = lambda s: struct.unpack('<?', s)
+bool_from_bytes = lambda s: struct.unpack('<?', s)[0]
 
-int16_to_string = lambda v: str(int(v) & 0xFFFF)
+#int16_to_string = lambda v: str(int(v) & 0xFFFF)
+int16_to_string = lambda v: str(int(v))
 int16_from_string = lambda s: int(s)
-int16_to_bytes = lambda v: struct.pack('<h', v & 0xFFFF)
-int16_from_bytes = lambda s: struct.unpack('<h', s)
+#int16_to_bytes = lambda v: struct.pack('<h', v & 0xFFFF)
+int16_to_bytes = lambda v: struct.pack('<h', v)
+int16_from_bytes = lambda s: struct.unpack('<h', s)[0]
 
-int32_to_string = lambda v: str(int(v) & 0xFFFFFFFF)
+#int32_to_string = lambda v: str(int(v) & 0xFFFFFFFF)
+int32_to_string = lambda v: str(int(v))
 int32_from_string = lambda s: int(s)
-int32_to_bytes = lambda v: struct.pack('<i', v & 0xFFFFFFFF)
-int32_from_bytes = lambda s: struct.unpack('<i', s)
+#int32_to_bytes = lambda v: struct.pack('<i', v & 0xFFFFFFFF)
+int32_to_bytes = lambda v: struct.pack('<i', v)
+int32_from_bytes = lambda s: struct.unpack('<i', s)[0]
 
 float_to_string = lambda v: str(float(v))  # TODO precision?
 float_from_string = lambda s: float(s)
 float_to_bytes = lambda v: struct.pack('<f', v)
-float_from_bytes = lambda s: struct.unpack('<f', s)
+float_from_bytes = lambda s: struct.unpack('<f', s)[0]
 
-floatsci_to_string = lambda v: '%E' % v
+floatsci_to_string = lambda v: tosci(v)
 floatsci_from_string = lambda s: float(s)
 #floatsci_to_bytes =
 #floatsci_from_bytes =
 
-doublesci_to_string = lambda v: '%E' % v
+doublesci_to_string = lambda v: tosci(v)
 doublesci_from_string = lambda s: float(s)
 #doublesci_to_bytes =
 #doublesci_from_bytes =
@@ -58,7 +71,7 @@ doublesci_from_string = lambda s: float(s)
 double_to_string = lambda v: str(float(v))
 double_from_string = lambda s: float(s)
 double_to_bytes = lambda v: struct.pack('<d', v)
-double_from_bytes = lambda s: struct.unpack('<f', s)
+double_from_bytes = lambda s: struct.unpack('<f', s)[0]
 
 char_to_string = lambda v: v[0]
 char_from_string = lambda s: s[0]
@@ -99,8 +112,17 @@ types['d'] = types['double']
 types['c'] = types['char']
 types['s'] = types['string']
 types['fs'] = types['float_sci']
-
 types['ds'] = types['double_sci']
+
+types['floatsci'] = types['float_sci']
+types['doublesci'] = types['double_sci']
+
+types['bbool'] = types['byte_bool']
+types['bint16'] = types['byte_int16']
+types['bint32'] = types['byte_int32']
+types['bfloat'] = types['byte_float']
+types['bdouble'] = types['byte_double']
+
 types['bb'] = types['byte_bool']
 types['bi'] = types['byte_int16']
 types['bi16'] = types['byte_int16']

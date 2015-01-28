@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#'!/usr/bin/env python
 """
 use stream.inWaiting to check if bytes are available
 
@@ -30,13 +30,13 @@ def validate_command(cmd):
     return True
 
 
-def split_line(l, fs=',', ls=';', esc='\\'):
+def split_line(l, fs=',', ls=';', esc='/'):
     sline = l.strip()
     start = 0
     if sline[-1] == ls:
-        end = len(l) - 1
+        end = len(sline) - 1
     else:
-        end = len(l)
+        end = len(sline)
     if end <= start:
         raise Exception("Invalid line %s" % l)
     tokens = []
@@ -64,23 +64,23 @@ def split_line(l, fs=',', ls=';', esc='\\'):
     return tokens
 
 
-def escape(s, fs=',', ls=';', esc='\\'):
+def escape(s, fs=',', ls=';', esc='/'):
     if isinstance(s, (tuple, list)):
-        return [escape(i, esc) for i in s]
+        return [escape(i, fs, ls, esc) for i in s]
     s = s.replace(esc, esc + esc)
     s = s.replace(fs, esc + fs)
     s = s.replace(ls, esc + ls)
     return s
 
 
-def unescape(s, esc='\\'):
+def unescape(s, esc='/'):
     if isinstance(s, (tuple, list)):
         return [unescape(i, esc) for i in s]
     return s.replace(esc, '')
 
 
 class Messenger(object):
-    def __init__(self, stream, cmds, fs=',', ls=';', esc='\\'):
+    def __init__(self, stream, cmds, fs=',', ls=';', esc='/'):
         """cmds should be a list"""
         self.stream = stream
         self.fs = fs
@@ -111,10 +111,13 @@ class Messenger(object):
 
     # stream parsing
     def process_line(self, l):
-        tokens = unescape(split_line(l, self.fs, self.ls, self.esc), self.esc)
+        print("process[%s]: %s" % (len(l), l.strip()))
+        tokens = unescape(
+            split_line(l, self.fs, self.ls, self.esc),
+            self.esc)
         cmd_id = int(tokens[0])
         types = self.cmds[cmd_id].get('params', [])
-        args = [t['from'](a) for (t, a) in zip(types, unescape(tokens[1:]))]
+        args = [t['from'](a) for (t, a) in zip(types, tokens[1:])]
         if len(self.callbacks.get(cmd_id, [])) == 0:
             self.unknown(*args)
         else:
@@ -132,7 +135,12 @@ class Messenger(object):
         return l
 
     def send(self, cmd_id, *args):
-        msg = self.fs.join((str(cmd_id), ) + tuple(escape(args))) + self.ls
+        print(args)
+        print(escape(args, self.fs, self.ls, self.esc))
+        msg = self.fs.join(
+            (str(cmd_id), ) +
+            tuple(escape(args, self.fs, self.ls, self.esc))) + self.ls
+        print("send[%s]: %s" % (len(msg), msg.strip()))
         self.stream.write(msg)
         # TODO LFCF?
 

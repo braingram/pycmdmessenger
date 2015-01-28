@@ -3,6 +3,7 @@
 import serial
 
 from . import messenger
+from . import params
 
 cmds = [
     {'name': 'kCommError'},
@@ -88,9 +89,43 @@ cmds = [
 ]
 
 pptypes = [
-    'kBool', 'kInt16', 'kInt32', 'kFloat', 'kFloatSci', 'kDouble',
-    'kDoubleSci', 'kChar', 'kString', 'kBBool', 'kBInt16', 'kBInt32',
-    'kBFloat', 'kBDouble', 'kBChar', 'kEscString']
+    'kBool',
+    'kInt16',
+    'kInt32',
+    'kFloat',
+    'kFloatSci',
+    'kDouble',
+    'kDoubleSci',
+    'kChar',
+    'kString',
+    'kBBool',
+    'kBInt16',
+    'kBInt32',
+    'kBFloat',
+    'kBDouble',
+    #'kBChar',
+    #'kEscString',
+]
+
+ppvalues = {
+    'kBool': [True, False],
+    'kInt16': [0, 128, 256, 32767, -32767],
+    'kInt32': [0, 256, -256, 32767, -32767, 2147483647, -2147483647],
+    #'kFloat': [0., -1., 1., -1E-3, 1E-3, -1E6, 1E6],
+    'kFloat': [0., -1., 1., -0.01, 0.01, -10000, 10000],
+    'kFloatSci': [0., -1., 1., -1E-1, 1E-1, -1E2, 1E2],
+    'kDouble': [0., -1., 1., -1E-1, 1E-1, -1E2, 1E2],
+    'kDoubleSci': [0., -1., 1., -1E-1, 1E-1, -1E2, 1E2],
+    #'kChar': [chr(0), chr(128), chr(255), ',', ';', '\n', '\r', '\\'],
+    'kChar': [chr(0), chr(128), chr(255), '\n', '\r'],
+    #'kString': ['hi', 'hello', 'how are things', '\x00\\\r\n,;'],
+    'kString': ['hi', 'hello', 'how are things'],
+}
+ppvalues['kBBool'] = ppvalues['kBool']
+ppvalues['kBInt16'] = ppvalues['kInt16']
+ppvalues['kBInt32'] = ppvalues['kInt32']
+ppvalues['kBFloat'] = ppvalues['kFloat']
+ppvalues['kBDouble'] = ppvalues['kDouble']
 
 
 def setup(port='/dev/ttyUSB0'):
@@ -132,13 +167,13 @@ class Expect(object):
         self.last_line = l
         self.messenger.process_line(l)
 
-    def expect(self, cmd_id, args=None):
+    def expect(self, cmd_id, *args):
         self.update()
         if not isinstance(cmd_id, int):
             cmd_id = self.messenger.cmds[cmd_id]['id']
         if self.last_message['id'] != cmd_id:
             return False, "id: %s != %s" % (self.last_message['id'], cmd_id)
-        if args is None:
+        if len(args) == 0:
             return True, ""
         if len(args) != len(self.last_message['args']):
             return False, \
@@ -149,8 +184,8 @@ class Expect(object):
                 return False, "arg[%s]: %s != %s" % (i, a, ea)
         return True, ""
 
-    def __call__(self, cmd_id, args=None):
-        success, msg = self.expect(cmd_id, args)
+    def __call__(self, cmd_id, *args):
+        success, msg = self.expect(cmd_id, *args)
         if not success:
             raise Exception(msg)
         return success, msg
@@ -185,8 +220,22 @@ def acknowledge_tests(m):
 
 
 def value_tests(m):
-    # ->kValuePing <-kValuePong for all types
-    pass
+    expect = Expect(m)
+    for (ti, pptype) in enumerate(pptypes):
+        for v in ppvalues[pptype]:
+            # encode value
+            t = pptype.lower()[1:]  # remove leading k
+            ptype = params.types[t]
+            ev = ptype['to'](v)
+            m.call('kValuePing', ti, ev)
+            #expect('kValuePong', ev)
+            expect('kValuePong')
+            # decode value
+            dv = ptype['from'](expect.last_message['args'][0])
+            if dv != v:
+                raise Exception("%s: decoded value %s != %s" % (pptype, dv, v))
+        print("kValuePing[%s] test passed" % (pptype))
+    expect.detach_callbacks()
 
 
 def multiple_arguments_tests(m):
