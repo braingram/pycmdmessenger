@@ -107,6 +107,7 @@ pptypes = [
     #'kEscString',
 ]
 
+# TODO bug in cmdMessenger, cannot send ',' '/' or ';' to arduino
 ppvalues = {
     'kBool': [True, False],
     'kInt16': [0, 128, 256, 32767, -32767],
@@ -117,7 +118,7 @@ ppvalues = {
     'kDouble': [0., -1., 1., -1E-1, 1E-1, -1E2, 1E2],
     'kDoubleSci': [0., -1., 1., -1E-1, 1E-1, -1E2, 1E2],
     #'kChar': [chr(0), chr(128), chr(255), ',', ';', '\n', '\r', '\\'],
-    'kChar': [chr(0), chr(128), chr(255), '\n', '\r'],
+    'kChar': [chr(0), chr(128), chr(255), '/', '\n', '\r'],
     #'kString': ['hi', 'hello', 'how are things', '\x00\\\r\n,;'],
     'kString': ['hi', 'hello', 'how are things'],
 }
@@ -143,7 +144,6 @@ class Expect(object):
     def __init__(self, messenger):
         self.messenger = messenger
         self.last_message = None
-        self.last_line = None
         self.messages = []
         self.callbacks = []
         self.attach_callbacks()
@@ -163,9 +163,10 @@ class Expect(object):
         self.messages.append(msg)
 
     def update(self):
-        l = self.messenger.read_line()
-        self.last_line = l
-        self.messenger.process_line(l)
+        self.messenger.next_command()
+        #l = self.messenger.read_line()
+        #self.last_line = l
+        #self.messenger.process_line(l)
 
     def expect(self, cmd_id, *args):
         self.update()
@@ -219,6 +220,35 @@ def acknowledge_tests(m):
     expect.detach_callbacks()
 
 
+def eq(a, b):
+    if isinstance(a, float):
+        if a - b < 1E-8:
+            return True
+        return False
+    return a == b
+
+
+def escape(s, chars, esc):
+    r = ""
+    for c in s:
+        if c in chars:
+            r += esc
+        r += c
+    return r
+
+
+def unescape(s, esc='/'):
+    r = ""
+    e = False
+    for c in s:
+        if not e and c == esc:
+            e = True
+        else:
+            r += c
+            e = False
+    return r
+
+
 def value_tests(m):
     expect = Expect(m)
     for (ti, pptype) in enumerate(pptypes):
@@ -227,12 +257,18 @@ def value_tests(m):
             t = pptype.lower()[1:]  # remove leading k
             ptype = params.types[t]
             ev = ptype['to'](v)
+            if ptype.get('escape', False):
+                ev = escape(ev, m.ls + m.fs + '\x00', m.esc)
             m.call('kValuePing', ti, ev)
             #expect('kValuePong', ev)
             expect('kValuePong')
             # decode value
-            dv = ptype['from'](expect.last_message['args'][0])
-            if dv != v:
+            if ptype.get('escape', False):
+                rv = unescape(expect.last_message['args'][0], m.esc)
+            else:
+                rv = expect.last_message['args'][0]
+            dv = ptype['from'](rv)
+            if not eq(dv, v):
                 raise Exception("%s: decoded value %s != %s" % (pptype, dv, v))
         print("kValuePing[%s] test passed" % (pptype))
     expect.detach_callbacks()

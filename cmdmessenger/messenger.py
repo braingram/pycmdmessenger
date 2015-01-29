@@ -67,16 +67,32 @@ def split_line(l, fs=',', ls=';', esc='/'):
 def escape(s, fs=',', ls=';', esc='/'):
     if isinstance(s, (tuple, list)):
         return [escape(i, fs, ls, esc) for i in s]
-    s = s.replace(esc, esc + esc)
-    s = s.replace(fs, esc + fs)
-    s = s.replace(ls, esc + ls)
-    return s
+    # TODO optimize this
+    cs = [fs, ls, esc, '\x00']
+    ns = ""
+    for c in s:
+        if c in cs:
+            ns += esc
+        ns += c
+    return ns
 
 
 def unescape(s, esc='/'):
     if isinstance(s, (tuple, list)):
         return [unescape(i, esc) for i in s]
-    return s.replace(esc, '')
+    # TODO optimize this
+    ns = ""
+    i = 0
+    while i < len(s):
+        if s[i] == esc:
+            i += 1
+            if i < len(s):
+                ns += s[i]
+        else:
+            ns += s[i]
+        i += 1
+    return ns
+    #return s.replace(esc, '')
 
 
 class Messenger(object):
@@ -110,11 +126,70 @@ class Messenger(object):
                 self.cmds[c['name']] = c
 
     # stream parsing
+    def trigger(self, cmd_id, *args):
+        if len(self.callbacks.get(cmd_id, [])) == 0:
+            self.unknown()
+        else:
+            [c(*args) for c in self.callbacks[cmd_id]]
+
+    def next_value(self, until=None, escape=False, n=None):
+        if until is None:
+            until = self.fs
+        print("\t\t%s:%s" % (until, escape))
+        s = ""
+        while True:
+            c = self.stream.read(1)
+            if escape and c == self.esc:
+                c = self.stream.read(1)
+            s += c
+            if c in until and n is None:
+                break
+            if n is not None and len(s) == n:
+                break
+        print("\tnext_value: %s" % s)
+        return s
+
+        if until is None:
+            until = self.fs
+        c = self.stream.read(1)
+        while c[-1] not in until:
+            c += self.stream.read(1)
+            if escape and c[-1] == self.esc:
+                c = self.stream.read(1)
+        print("\tnext_value: %s" % c)
+        return c
+
+    def next_command(self):
+        s = self.next_value(self.fs + self.ls)
+        cmd_id = int(s[:-1])
+        if s[-1] == self.ls:
+            self.trigger(cmd_id)
+        cmd = self.cmds[cmd_id]
+        ptypes = cmd['params']
+        args = []
+        print("\tfound %s[%s]: %s" % (cmd_id, cmd.get('name', '?'), ptypes))
+        while len(args) < len(ptypes):
+            ptype = ptypes[len(args)]
+            print("\t\t\t%s" % ptype)
+            n = ptype.get('n', None)
+            esc = ptype.get('escape', False)
+            if n is None:
+                s = self.next_value(self.fs + self.ls, esc)
+            else:
+                s = self.next_value('', esc, n + 1)
+            args.append(ptype['from'](s[:-1]))
+        print(args, s)
+        if s[-1] != self.ls:
+            print('\tflushing until ls')
+            self.next_value(self.ls)
+        self.trigger(cmd_id, *args)
+
     def process_line(self, l):
-        print("process[%s]: %s" % (len(l), l.strip()))
-        tokens = unescape(
-            split_line(l, self.fs, self.ls, self.esc),
-            self.esc)
+        print("\tprocess[%s]: %s" % (len(l), l.strip()))
+        #tokens = unescape(
+        #    split_line(l, self.fs, self.ls, self.esc),
+        #    self.esc)
+        tokens = split_line(l, self.fs, self.ls, self.esc)
         cmd_id = int(tokens[0])
         types = self.cmds[cmd_id].get('params', [])
         args = [t['from'](a) for (t, a) in zip(types, tokens[1:])]
@@ -135,12 +210,11 @@ class Messenger(object):
         return l
 
     def send(self, cmd_id, *args):
-        print(args)
-        print(escape(args, self.fs, self.ls, self.esc))
-        msg = self.fs.join(
-            (str(cmd_id), ) +
-            tuple(escape(args, self.fs, self.ls, self.esc))) + self.ls
-        print("send[%s]: %s" % (len(msg), msg.strip()))
+        #msg = self.fs.join(
+        #    (str(cmd_id), ) +
+        #    tuple(escape(args, self.fs, self.ls, self.esc))) + self.ls
+        msg = self.fs.join((str(cmd_id), ) + args) + self.ls
+        print("\tsend[%s]: %s" % (len(msg), msg.strip()))
         self.stream.write(msg)
         # TODO LFCF?
 
