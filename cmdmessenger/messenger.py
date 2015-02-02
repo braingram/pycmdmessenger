@@ -13,6 +13,8 @@ use stream.inWaiting to check if bytes are available
 
 """
 
+import warnings
+
 from . import params
 
 
@@ -95,6 +97,23 @@ def unescape(s, esc='/'):
     #return s.replace(esc, '')
 
 
+def check_pt(pt):
+    if pt in ('char', 'string'):
+        warnings.warn(
+            "char and string sending is NOT escaped, "
+            "this means that your messages can get garbled "
+            "with no indication that things went wrong. "
+            "use escaped_string instead")
+    if pt in ('float_sci', 'double_sci'):
+        warnings.warn(
+            "Scientific notation is truncated, "
+            "use byte_float and byte_double instead")
+    if pt in ('float', 'double'):
+        warnings.warn(
+            "float and double are truncated by default, "
+            "use byte_float and byte_double instead")
+
+
 class Messenger(object):
     def __init__(self, stream, cmds, fs=',', ls=';', esc='/'):
         """cmds should be a list"""
@@ -118,7 +137,9 @@ class Messenger(object):
             if 'params' in c:
                 ps = []
                 for rp in c['params']:
-                    ps.append(params.types[rp])
+                    pt = params.types[rp]
+                    check_pt(pt)
+                    ps.append(pt)
                 c['params'] = ps
             self.callbacks[i] = []
             self.cmds[i] = c

@@ -6,13 +6,13 @@ from . import messenger
 from . import params
 
 cmds = [
-    {'name': 'kCommError'},
-    {'name': 'kComment'},
-    {
+    {'name': 'kCommError'},  # 0
+    {'name': 'kComment'},  # 1
+    {  # 2
         'name': 'kAcknowledge',
         'params': [str],
     },
-    {
+    {  # 3
         # sent either from or to arduino, kAcknowledge expected in <1 sec
         'name': 'kAreYouReady',  # to arduino [OnArduinoReady]
         #'params': {  # params to arduino are different than those from
@@ -20,12 +20,12 @@ cmds = [
         #},
         'params': [str],
     },
-    {
+    {  # 4
         'name': 'kError',  # from arduino
         'params': [str],
     },
-    {'name': 'kAskUsIfReady'},  # to arduino [OnAskIfReady]
-    {
+    {'name': 'kAskUsIfReady'},  # 5, to arduino [OnAskIfReady]
+    {  # 6
         # this seems to be used as a reply from the arduino on:
         #   kAskIfReady, with 1 bool param
         #       or
@@ -37,77 +37,80 @@ cmds = [
         #}
         'params': [bool],
     },
-    {
+    {  # 7
         'name': 'kValuePing',  # to arduino [OnValuePing]
         'params': ['i16', str],  # 2nd param must be pre-packed
     },
-    {
+    {  # 8
         'name': 'kValuePong',
         'params': [str],  # param must unpacked
     },
-    {
+    {  # 9
         'name': 'kMultiValuePing',  # to arduino [OnMultiValuePing]
         'params': ['i16', 'i32', 'd'],
     },
-    {
+    {  # 10
         # response (echo) of kMultiValuePing
         'name': 'kMultiValuePong',
         'params': ['i16', 'i32', 'd'],
     },
-    {'name': 'kRequestReset'},  # to arduino [OnRequestReset]
-    {
+    {'name': 'kRequestReset'},  # 11, to arduino [OnRequestReset]
+    {  # 12
         'name': 'kRequestResetAcknowledge',
         'params': [str],
     },
-    {
+    {  # 13
         'name': 'kRequestSeries',  # to arduino [OnRequestSeries]
         'params': ['i16', 'f'],
     },
-    {
+    {  # 14
         'name': 'kReceiveSeries',
         'params': ['f'],
     },
-    {
+    {  # 15
         'name': 'kDoneReceiveSeries',
         'params': [str],
     },
-    {
+    {  # 16
         # send a series of numbers (each using kSendSeries)
         # when number sent == the value of params[0]
         #   kAckSendSeries will be sent
         'name': 'kPrepareSendSeries',  # to arduino [OnPrepareSendSeries]
         'params': ['i16'],  # seriesLength
     },
-    {
+    {  # 17
         'name': 'kSendSeries',  # to arduino [OnSendSeries]
         'params': ['f'],
     },
-    {
+    {  # 18
         'name': 'kAckSendSeries',
         'params': [str],
     },
 ]
 
 pptypes = [
-    'kBool',
-    'kInt16',
-    'kInt32',
-    'kFloat',
-    'kFloatSci',
-    'kDouble',
-    'kDoubleSci',
-    'kChar',
-    'kString',
-    'kBBool',
-    'kBInt16',
-    'kBInt32',
-    'kBFloat',
-    'kBDouble',
-    #'kBChar',
-    #'kEscString',
+    'kBool',  # 0
+    'kInt16',  # 1
+    'kInt32',  # 2
+    'kFloat',  # 3
+    'kFloatSci',  # 4
+    'kDouble',  # 5
+    'kDoubleSci',  # 6
+    'kChar',  # 7
+    'kString',  # 8
+    'kBBool',  # 9
+    'kBInt16',  # 10
+    'kBInt32',  # 11
+    'kBFloat',  # 12
+    'kBDouble',  # 13
+    #'kBChar',  # 14
+    #'kEscString',  # 15
 ]
 
 # TODO bug in cmdMessenger, cannot send ',' '/' or ';' to arduino
+# TODO char cannot be ',' or ';', same with BChar
+# TODO string sending is also screwed up by ',' and ';'
+# TODO scientific notation with -exponents are truncated
 ppvalues = {
     'kBool': [True, False],
     'kInt16': [0, 128, 256, 32767, -32767],
