@@ -1,9 +1,3 @@
-Python module for intefacing with the ardunio cmdmessenger library
-
-cmdmessenger messages:
-
-    cmdid, p1, ... pn;
-
 WARNING!!
 There appears to be several critical bugs in cmdmessanger with param sending.
 These include:
@@ -14,6 +8,22 @@ These include:
 It's safest to use:
 - params as bytes (byte_float, etc...)
 - escaped strings (escaped_string)
+
+Because of these bugs in cmdmessanger I abandoned this project and built
+[Comando](https://github.com/braingram/comando)
+
+It has a command protocol very similar to cmdmessager.
+
+If you want to stick with cmdmessanger please consider trying (I have not)
+<https://github.com/harmsm/PyCmdMessenger>
+
+    
+Python module for intefacing with the ardunio cmdmessenger library
+
+cmdmessenger messages:
+
+    cmdid, p1, ... pn;
+
 
 fs ',' and sep ';' can be changed (also escape character '\')
 params can be text or binary (escaped byte string)
